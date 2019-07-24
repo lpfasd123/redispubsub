@@ -1,6 +1,6 @@
 # Redis的发布订阅以及Java实现
 Redis 通过 PUBLISH 、 SUBSCRIBE等命令实现了订阅与发布模式， 这个功能提供两种信息机制， 分别是订阅/发布到频道和订阅/发布到模式， 下文先讨论订阅/发布到频道的实现， 再讨论订阅/发布到模式的实现。
-##频道的订阅与信息发送
+## 频道的订阅与信息发送
 Redis 的SUBSCRIBE命令可以让客户端订阅任意数量的频道， 每当有新信息发送到被订阅的频道时， 信息就会被发送给所有订阅指定频道的客户端。
 
 作为例子， 下图展示了频道 `channel1` ， 以及订阅这个频道的三个客户端 —— `client2` 、 `client5` 和 `client1` 之间的关系：
@@ -12,7 +12,7 @@ Redis 的SUBSCRIBE命令可以让客户端订阅任意数量的频道， 每当�
 
 
 在后面的内容中， 我们将探讨 SUBSCRIBE和 PUBLISH命令的实现， 以及这套订阅与发布机制的运作原理。
-##订阅频道
+## 订阅频道
 每个 Redis 服务器进程都维持着一个表示服务器状态的 `redis.h/redisServer` 结构， 结构的 `pubsub_channels` 属性是一个字典， 这个字典就用于保存订阅频道的信息：
 ```
 struct redisServer {
@@ -42,7 +42,7 @@ def SUBSCRIBE(client, channels):
 ```
 
 通过 `pubsub_channels` 字典， 程序只要检查某个频道是否为字典的键， 就可以知道该频道是否正在被客户端订阅； 只要取出某个键的值， 就可以得到所有订阅该频道的客户端的信息。
-##发送信息到频道
+## 发送信息到频道
 了解了 `pubsub_channels` 字典的结构之后， 解释 PUBLISH命令的实现就非常简单了： 当调用 `PUBLISH channel message` 命令， 程序首先根据 `channel` 定位到字典的键， 然后将信息发送给字典值链表中的所有客户端。
 
 比如说，对于以下这个 `pubsub_channels` 实例， 如果某个客户端执行命令 `PUBLISH channel1 "hello moto"` ，那么 `client2` 、 `client5` 和 `client1` 三个客户端都将接收到 `"hello moto"` 信息：
@@ -56,9 +56,9 @@ def PUBLISH(channel, message):
         # 将信息发送给它们
         send_message(client, message)
 ```
-##退订频道
+## 退订频道
 使用 UNSUBSCRIBE命令可以退订指定的频道， 这个命令执行的是订阅的反操作： 它从 `pubsub_channels` 字典的给定频道（键）中， 删除关于当前客户端的信息， 这样被退订频道的信息就不会再发送给这个客户端。
-##模式的订阅与信息发送
+## 模式的订阅与信息发送
 当使用 PUBLISH命令发送信息到某个频道时， 不仅所有订阅该频道的客户端会收到信息， 如果有某个/某些模式和这个频道匹配的话， 那么所有订阅这个/这些频道的客户端也同样会收到信息。
 
 下图展示了一个带有频道和模式的例子， 其中 `tweet.shop.*` 模式匹配了 `tweet.shop.kindle` 频道和 `tweet.shop.ipad` 频道， 并且有不同的客户端分别订阅它们三个：
@@ -139,7 +139,7 @@ def PUBLISH(channel, message):
 
 使用 PUNSUBSCRIBE 命令可以退订指定的模式， 这个命令执行的是订阅模式的反操作： 程序会删除 `redisServer.pubsub_patterns` 链表中， 所有和被退订模式相关联的 `pubsubPattern` 结构， 这样客户端就不会再收到和模式相匹配的频道发来的信息。
 
-##小结
+## 小结
 - 订阅信息由服务器进程维持的 redisServer.pubsub_channels 字典保存，字典的键为被订阅的频道，字典的值为订阅频道的所有客户端。
 - 当有新消息发送到频道时，程序遍历频道（键）所对应的（值）所有客户端，然后将消息发送到所有订阅频道的客户端上。
 - 订阅模式的信息由服务器进程维持的 redisServer.pubsub_patterns 链表保存，链表的每个节点都保存着一个 pubsubPattern 结构，结构中保存着被订阅的模式，以及订阅该模式的客户端。程序通过遍历链表来查找某个频道是否和某个模式匹配。
